@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="png" href="cloud.ico">
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Include Iro.js color picker library -->
+    <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
+</head>
+
+<body>
+
+    
+    <div class="button-container">
+        <button onclick="sendLEDMode('0')"><span class="button_top">Thunder</span></button>
+        <button onclick="sendLEDMode('1')"><span class="button_top">Sunlight</span></button>
+        <button onclick="sendLEDMode('2')"><span class="button_top">Rainbow</span></button>
+        <button onclick="sendLEDMode('3')"><span class="button_top">Color</span></button>
+      </div>
+
+    <!-- Color picker container with the ID "picker" -->
+    <div class="controls">
+        <div id="picker"></div> <!-- Iro.js color picker will be inserted here -->
+    </div>
+
+    <!-- Link to external JavaScript -->
+    <script src="scripts.js"></script>
+</body>
+
+</html>
