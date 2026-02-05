@@ -1,11 +1,11 @@
 #include "SerialHandler.h"
+#include "config.h"
 #include <Arduino.h>
 #include <ArduinoOTA.h>
 #include <SPIFFS.h>
 #include <WebServer.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
-#include "config.h"
 
 SerialHandler SH;
 
@@ -203,6 +203,65 @@ void setup() {
         } else {
             // If required arguments are missing, return an error
             server.send(400, "text/plain", "Bad Request: Missing color arguments");
+        }
+    });
+
+    // Brightness handler
+    server.on("/brightness", HTTP_GET, []() {
+        if (server.hasArg("value")) {
+            String brightnessStr = server.arg("value");
+            int brightness = brightnessStr.toInt(); // Convert the brightness argument to an integer
+
+            brightness = map(constrain(brightness, 0, 100), 0, 100, 0, 255); // Map the brightness value to 0-255
+
+            int colors[3] = {red, green, blue}; // Store the current RGB values in an array
+
+            // Find index of the maximum value in the colors array
+            int maxIndex = 0;
+
+            for (int i = 1; i < 3; i++) {
+                if (colors[i] > colors[maxIndex]) {
+                    maxIndex = i;
+                }
+            }
+            colors[maxIndex] = brightness; // Set the maximum value to the brightness value
+
+            // Scale the other values to maintain the same ratio
+            for (int i = 0; i < 3; i++) {
+                if (i != maxIndex) {
+                    colors[i] = constrain(map(colors[i], 0, colors[maxIndex], 0, brightness), 0, 255);
+                }
+            }
+
+            red = colors[0];
+            green = colors[1];
+            blue = colors[2];
+
+            // Save the new color as a hex string
+            String colorHex = "#" +
+                              (red < 16 ? "0" + String(red, HEX) : String(red, HEX)) +
+                              (green < 16 ? "0" + String(green, HEX) : String(green, HEX)) +
+                              (blue < 16 ? "0" + String(blue, HEX) : String(blue, HEX));
+
+            saveColor(colorHex);
+
+            // Send the color to the Teensy
+            SH.p("<").p("R").p(red).pln(">");
+            SH.p("<").p("G").p(green).pln(">");
+            SH.p("<").p("B").p(blue).pln(">");
+
+            // Handle the RGB values as needed (send to LEDs, etc.)
+            Serial.print("Color changed to: ");
+            Serial.print("R: ");
+            Serial.print(red);
+            Serial.print(", G: ");
+            Serial.print(green);
+            Serial.print(", B: ");
+            Serial.println(blue);
+
+            server.send(200, "text/plain", "Brightness set to " + String(brightness) + ". Color is" + String(red) + " " + String(green) + " " + String(blue));
+        } else {
+            server.send(400, "text/plain", "Bad Request: No command specified.");
         }
     });
 
