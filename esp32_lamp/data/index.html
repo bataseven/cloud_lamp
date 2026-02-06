@@ -26,6 +26,20 @@
         <div id="picker"></div> <!-- Iro.js color picker will be inserted here -->
     </div>
 
+    <div class="alarm-panel">
+        <div class="alarm-title">Alarm</div>
+        <div class="alarm-row">
+            <label for="alarmTime">Time</label>
+            <input id="alarmTime" type="time" step="60">
+        </div>
+        <div class="alarm-row">
+            <label for="alarmEnabled">Enable</label>
+            <input id="alarmEnabled" type="checkbox">
+        </div>
+        <button id="alarmTest" class="hidden"><span class="button_top">Test Alarm</span></button>
+        <div id="alarmStatus" class="alarm-status">Alarm: off</div>
+    </div>
+
     <!-- Link to external JavaScript -->
     <script src="scripts.js"></script>
 </body>

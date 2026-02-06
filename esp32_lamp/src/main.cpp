@@ -26,6 +26,12 @@ IPAddress subnet(255, 255, 255, 0);   // Subnet mask
 IPAddress primaryDNS(192, 168, 1, 1); // Optional: Primary DNS (usually your router)
 
 String lastColor = "#ff0000"; // Default color (Red)
+bool alarmEnabled = false;
+String alarmTime = "";
+int currentBrightness = 100;
+
+String alarmFilePath = "/alarm.txt";
+String brightnessFilePath = "/brightness.txt";
 
 // Function to save the color to SPIFFS
 void saveColor(String color) {
@@ -52,6 +58,65 @@ String loadColor() {
         return color;
     }
     return lastColor; // Return default if file doesn't exist
+}
+
+void saveAlarm() {
+    File file = SPIFFS.open(alarmFilePath, "w");
+    if (!file) {
+        Serial.println("Failed to open alarm file for writing");
+        return;
+    }
+    file.println(alarmEnabled ? "enabled=1" : "enabled=0");
+    file.println("time=" + alarmTime);
+    file.close();
+}
+
+void loadAlarm() {
+    if (!SPIFFS.exists(alarmFilePath)) {
+        return;
+    }
+    File file = SPIFFS.open(alarmFilePath, "r");
+    if (!file) {
+        Serial.println("Failed to open alarm file for reading");
+        return;
+    }
+    while (file.available()) {
+        String line = file.readStringUntil('\n');
+        line.trim();
+        if (line.startsWith("enabled=")) {
+            String v = line.substring(8);
+            alarmEnabled = (v == "1");
+        } else if (line.startsWith("time=")) {
+            alarmTime = line.substring(5);
+        }
+        file.close();
+    }
+}
+
+void saveBrightness() {
+    File file = SPIFFS.open(brightnessFilePath, "w");
+    if (!file) {
+        Serial.println("Failed to open brightness file for writing");
+        return;
+    }
+    file.println(String(currentBrightness));
+    file.close();
+}
+
+void loadBrightness() {
+    if (!SPIFFS.exists(brightnessFilePath)) {
+        currentBrightness = 100;
+        return;
+    }
+    File file = SPIFFS.open(brightnessFilePath, "r");
+    if (!file) {
+        Serial.println("Failed to open brightness file for reading");
+        return;
+    }
+    String line = file.readStringUntil('\n');
+    line.trim();
+    currentBrightness = constrain(line.toInt(), 1, 100);
+    file.close();
 }
 void setup() {
     // Start all serial ports
@@ -80,6 +145,8 @@ void setup() {
 
     // Load the last saved color from SPIFFS
     lastColor = loadColor();
+    loadAlarm();
+    loadBrightness();
 
     // !! This is not tested
     red = strtol(&lastColor[1], NULL, 16);
@@ -151,6 +218,33 @@ void setup() {
         server.send(200, "text/plain", lastColor); // Send the saved color to the client
     });
 
+    // Serve the saved alarm settings as JSON
+    server.on("/getAlarm", HTTP_GET, []() {
+        String json = "{";
+        json += "\"enabled\":" + String(alarmEnabled ? "true" : "false") + ",";
+        json += "\"time\":\"" + alarmTime + "\",";
+        json += "\"brightness\":100";
+        json += "}";
+        server.send(200, "application/json", json);
+    });
+
+    server.on("/getBrightness", HTTP_GET, []() {
+        server.send(200, "text/plain", String(currentBrightness));
+    });
+
+    // Update alarm settings
+    server.on("/setAlarm", HTTP_GET, []() {
+        if (server.hasArg("enabled")) {
+            String v = server.arg("enabled");
+            alarmEnabled = (v == "1" || v == "true");
+        }
+        if (server.hasArg("time")) {
+            alarmTime = server.arg("time");
+        }
+        saveAlarm();
+        server.send(200, "text/plain", "Alarm saved");
+    });
+
     // Generic command handler (for commands 1, 2, 3, 4)
     server.on("/command", HTTP_GET, []() {
         if (server.hasArg("value")) {
@@ -175,6 +269,10 @@ void setup() {
             red = rString.toInt();
             green = gString.toInt();
             blue = bString.toInt();
+
+            int maxRGB = max(red, max(green, blue));
+            currentBrightness = constrain(map(maxRGB, 0, 255, 0, 100), 1, 100);
+            saveBrightness();
 
             // Save the color as a hex string
             String colorHex = "#" +
@@ -213,6 +311,8 @@ void setup() {
             int brightness = brightnessStr.toInt(); // Convert the brightness argument to an integer
 
             brightness = map(constrain(brightness, 0, 100), 0, 100, 0, 255); // Map the brightness value to 0-255
+            currentBrightness = constrain(brightnessStr.toInt(), 1, 100);
+            saveBrightness();
 
             int colors[3] = {red, green, blue}; // Store the current RGB values in an array
 
